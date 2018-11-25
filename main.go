@@ -16,7 +16,6 @@ import (
 	"github.com/aws/aws-sdk-go/service/s3"
 )
 
-// TODO fill these in!
 const (
 	S3_REGION = "eu-west-1"
 	S3_BUCKET = "rayyildiz-photos"
@@ -25,7 +24,6 @@ const (
 
 func main() {
 
-	// Create a single AWS session (we can re use this if we're uploading many files)
 	s, err := session.NewSession(&aws.Config{
 		Region:      aws.String(S3_REGION),
 		Credentials: credentials.NewEnvCredentials(),
@@ -35,11 +33,6 @@ func main() {
 	}
 
 	svc := s3.New(s)
-	// Upload
-	// err = AddFileToS3(s, "result.csv")
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
 
 	i := 0
 
@@ -80,7 +73,7 @@ func getFileList() []string {
 			strings.Contains(dir, "2016") || strings.Contains(dir, "2013")) {
 
 			name := strings.ToLower(info.Name())
-			if !info.IsDir() && strings.HasSuffix(name, ".mp4") {
+			if !info.IsDir() && (strings.HasSuffix(name, ".mp4") || strings.HasSuffix(name, ".jpg") || strings.HasSuffix(name, ".png")) {
 				files = append(files, path)
 			}
 		}
@@ -124,7 +117,7 @@ func AddFileToS3(client *s3.S3, fileDir string) error {
 	return err
 }
 
-func CheckFileExist(client *s3.S3, fileName string) (error) {
+func CheckFileExist(client *s3.S3, fileName string) error {
 
 	fileName = strings.Replace(fileName, "\\", "/", 1)
 
