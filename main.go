@@ -19,9 +19,9 @@ import (
 )
 
 func main() {
-	fileRoot := flag.String("file-root", "./", "Directory path")
+	fileRoot := flag.String("directory-root", "./", "Directory root path")
+	extensions := flag.String("file-extension", "*", "File extension")
 	bucket := flag.String("s3-bucket", "", "S3 bucket name")
-	extensions := flag.String("file-extension", "*", "File extension (Default all) ")
 	region := flag.String("s3-region", "eu-west-1", "S3 region name")
 	storageClass := flag.String("s3-storage-class", "ONEZONE_IA", "S3 Storage class")
 	flag.Parse()
@@ -30,6 +30,12 @@ func main() {
 		flag.Usage()
 		os.Exit(1)
 	}
+
+	fmt.Printf("Root folder :%s", *fileRoot)
+	fmt.Printf("File Extension :%s", *extensions)
+	fmt.Printf("Bucket name :%s", *bucket)
+	fmt.Printf("S3 Region :%s", *region)
+	fmt.Printf("S3 Storage Class :%s", *storageClass)
 
 	s, err := session.NewSession(&aws.Config{
 		Region:      aws.String(*region),
