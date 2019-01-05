@@ -1,6 +1,8 @@
 # S3Uploader
 
+[![Build Status](https://travis-ci.org/rayyildiz/s3Upload.svg?branch=master)](https://travis-ci.org/rayyildiz/s3Upload)
 
+CLI for uploading files to AWS S3
 
 ## Usage
 
