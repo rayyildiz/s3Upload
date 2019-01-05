@@ -1,4 +1,4 @@
-module rayyildiz.com/s3upload
+module github.com/rayyildiz/s3upload
 
 require (
 	github.com/aws/aws-sdk-go v1.15.78

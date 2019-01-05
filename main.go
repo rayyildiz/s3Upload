@@ -2,13 +2,15 @@ package main
 
 import (
 	"bytes"
+	"flag"
 	"fmt"
-	"github.com/aws/aws-sdk-go/aws/awserr"
 	"log"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/aws/aws-sdk-go/aws/awserr"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
@@ -16,16 +18,21 @@ import (
 	"github.com/aws/aws-sdk-go/service/s3"
 )
 
-const (
-	S3_REGION = "eu-west-1"
-	S3_BUCKET = "rayyildiz-photos"
-	FS_ROOT   = "G:\\Photos\\Downloads\\" // "G:\\test\\"
-)
-
 func main() {
+	fileRoot := flag.String("file-root", "./", "Directory path")
+	bucket := flag.String("s3-bucket", "", "S3 bucket name")
+	extensions := flag.String("file-extension", "*", "File extension (Default all) ")
+	region := flag.String("s3-region", "eu-west-1", "S3 region name")
+	storageClass := flag.String("s3-storage-class", "ONEZONE_IA", "S3 Storage class")
+	flag.Parse()
+
+	if *bucket == "" {
+		flag.Usage()
+		os.Exit(1)
+	}
 
 	s, err := session.NewSession(&aws.Config{
-		Region:      aws.String(S3_REGION),
+		Region:      aws.String(*region),
 		Credentials: credentials.NewEnvCredentials(),
 	})
 	if err != nil {
@@ -36,21 +43,21 @@ func main() {
 
 	i := 0
 
-	files := getFileList()
+	files := fileList(*fileRoot, *extensions)
 	for _, strFile := range files {
 		f, err := os.Open(strFile)
 		if err != nil {
-			log.Printf("could get file info ")
+			log.Printf("couldn't get file info for %s, %v", strFile, err)
 		}
-		// log.Printf("file info %s", f.Name())
+		defer f.Close()
 
 		fileName := f.Name()
 
-		newName := fileName[len(FS_ROOT):]
-		err = CheckFileExist(svc, newName)
+		newName := fileName[len(*fileRoot):]
+		err = checkIfFileExist(svc, newName, *bucket)
 		log.Printf("%s file status %v", newName, err)
 		if err == nil {
-			err = AddFileToS3(svc, newName)
+			err = uploadFile(svc, *fileRoot, newName, *bucket, *storageClass)
 			if err == nil {
 				i++
 			} else {
@@ -58,26 +65,20 @@ func main() {
 			}
 		}
 
-		f.Close()
+		// f.Close()
 	}
 
 	log.Printf("totally uploaded file number %d", i)
 }
 
-func getFileList() []string {
-
+func fileList(rootDir, extension string) []string {
 	var files []string
-	err := filepath.Walk(FS_ROOT, func(path string, info os.FileInfo, err error) error {
-		dir := path
-		if !(strings.Contains(dir, "2013") || strings.Contains(dir, "2014") || strings.Contains(dir, "2015") ||
-			strings.Contains(dir, "2016") || strings.Contains(dir, "2013")) {
+	err := filepath.Walk(rootDir, func(path string, info os.FileInfo, err error) error {
 
-			name := strings.ToLower(info.Name())
-			if !info.IsDir() && (strings.HasSuffix(name, ".mp4") || strings.HasSuffix(name, ".jpg") || strings.HasSuffix(name, ".png")) {
-				files = append(files, path)
-			}
+		name := strings.ToLower(info.Name())
+		if !info.IsDir() && (extension == "*" || strings.HasSuffix(name, extension)) {
+			files = append(files, path)
 		}
-
 		return nil
 	})
 	if err != nil {
@@ -87,42 +88,37 @@ func getFileList() []string {
 	return files
 }
 
-func AddFileToS3(client *s3.S3, fileDir string) error {
+func uploadFile(client *s3.S3, fileRoot, fileDir, bucket, storageClass string) error {
 
 	fileDir = strings.Replace(fileDir, "\\", "/", 1)
-	// Open the file for use
-	file, err := os.Open(FS_ROOT + fileDir)
+	file, err := os.Open(fileRoot + fileDir)
 	if err != nil {
 		return err
 	}
 	defer file.Close()
 
-	// Get file size and read the file content into a buffer
 	fileInfo, _ := file.Stat()
-	var size int64 = fileInfo.Size()
+	size := fileInfo.Size()
 	buffer := make([]byte, size)
 	file.Read(buffer)
 
-	// Config settings: this is where you choose the bucket, filename, content-type etc.
-	// of the file you're uploading.
 	_, err = client.PutObject(&s3.PutObjectInput{
-		Bucket:        aws.String(S3_BUCKET),
+		Bucket:        aws.String(bucket),
 		Key:           aws.String(fileDir),
 		ACL:           aws.String("private"),
 		Body:          bytes.NewReader(buffer),
 		ContentLength: aws.Int64(size),
 		ContentType:   aws.String(http.DetectContentType(buffer)),
-		StorageClass:  aws.String("ONEZONE_IA"),
+		StorageClass:  aws.String(storageClass),
 	})
 	return err
 }
 
-func CheckFileExist(client *s3.S3, fileName string) error {
-
+func checkIfFileExist(client *s3.S3, fileName, bucket string) error {
 	fileName = strings.Replace(fileName, "\\", "/", 1)
 
 	_, err := client.HeadObject(&s3.HeadObjectInput{
-		Bucket: aws.String(S3_BUCKET),
+		Bucket: aws.String(bucket),
 		Key:    aws.String(fileName),
 	})
 	if err != nil {
@@ -131,9 +127,6 @@ func CheckFileExist(client *s3.S3, fileName string) error {
 		if ok && aerr.Code() == "NotFound" {
 			return nil
 		}
-
 	}
-	// log.Printf("result %v", result)
-
 	return fmt.Errorf("file exist %s", fileName)
 }
