@@ -1,4 +1,4 @@
-# S3Uploader
+# S3Uploader (Deprecated) Use [Aws CLI](https://docs.aws.amazon.com/cli/latest/reference/s3/index.html#single-local-file-and-s3-object-operations)
 
 [![Build Status](https://travis-ci.org/rayyildiz/s3Upload.svg?branch=master)](https://travis-ci.org/rayyildiz/s3Upload)
 
